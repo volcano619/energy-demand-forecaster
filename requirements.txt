@@ -1,0 +1,19 @@
+# Energy Demand Forecasting
+# Dependencies
+
+# Core
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualization
+plotly>=5.15.0
+
+# Statistical Models
+prophet>=1.1.0
+
+# Deep Learning (optional - for LSTM)
+# torch>=2.0.0  # Uncomment if using LSTM
+
+# Evaluation
+scikit-learn>=1.3.0
