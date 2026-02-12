@@ -13,11 +13,11 @@ A **hybrid ML time series forecasting system** for predicting energy demand, ena
 
 ## 📸 Business Results
 
-### Forecast Dashboard — Actual vs Predicted with Confidence Intervals
-![Energy Forecast — 3.1% MAPE ensemble model with 95% confidence intervals and anomaly detection](./screenshots/timeseries_forecast.png)
+### Business Impact Dashboard — $25M Annual Savings
+![Energy Forecasting Business Impact — Ensemble beats individual models, $25M savings, 14-28x ROI](./screenshots/forecast_business_impact_v2.png)
 
-### Model Performance & Business Impact — $25M Annual Savings
-![Energy Forecasting Metrics — Ensemble beats individual models, $25M savings, 14-28x ROI](./screenshots/timeseries_metrics.png)
+### Forecast Dashboard — Actual vs Predicted with Confidence Intervals
+![Energy Forecast Solution UI — 3.1% MAPE ensemble model with 95% confidence intervals and anomaly detection](./screenshots/forecast_solution_ui_v2.png)
 
 ---
 
