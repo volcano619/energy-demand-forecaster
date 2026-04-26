@@ -19,6 +19,8 @@ A **hybrid ML time series forecasting system** for predicting energy demand, ena
 ### Forecast Dashboard — Actual vs Predicted with Confidence Intervals
 ![Energy Forecast Solution UI — 3.1% MAPE ensemble model with 95% confidence intervals and anomaly detection](./screenshots/forecast_solution_ui_v2.png)
 
+**🔴 Live Cloud Deployment:** [https://huggingface.co/spaces/vnicks177/TimeSeriesForecasting-demo](https://huggingface.co/spaces/vnicks177/TimeSeriesForecasting-demo)
+
 ---
 
 ## 1. Business Problem
