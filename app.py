@@ -116,39 +116,48 @@ with st.sidebar:
     min_date = df[DATETIME_COL].min().date()
     max_date = df[DATETIME_COL].max().date()
     
+    if "date_range" not in st.session_state:
+        st.session_state.date_range = (max_date - timedelta(days=30), max_date)
     date_range = st.date_input(
         "Select Range",
-        value=(max_date - timedelta(days=30), max_date),
+        key="date_range",
         min_value=min_date,
         max_value=max_date
     )
     
     # Forecast settings
     st.markdown("### 🔮 Forecast Settings")
+    if "horizon_name" not in st.session_state:
+        st.session_state.horizon_name = list(FORECAST_HORIZONS.keys())[0]
     horizon_name = st.selectbox(
         "Forecast Horizon",
         options=list(FORECAST_HORIZONS.keys()),
-        index=0
+        key="horizon_name"
     )
     horizon_hours = FORECAST_HORIZONS[horizon_name]
     
     # Anomaly detection
     st.markdown("### 🚨 Anomaly Detection")
+    if "anomaly_threshold" not in st.session_state:
+        from config import ANOMALY_THRESHOLD_SIGMA
+        st.session_state.anomaly_threshold = ANOMALY_THRESHOLD_SIGMA
     anomaly_threshold = st.slider(
         "Threshold (σ)",
         min_value=1.0,
         max_value=5.0,
-        value=ANOMALY_THRESHOLD_SIGMA,
+        key="anomaly_threshold",
         step=0.5,
         help="Standard deviations from mean"
     )
     
     # Model selection
     st.markdown("### 🤖 Model")
+    if "ts_model_type" not in st.session_state:
+        st.session_state.ts_model_type = "Seasonal Naive"
     model_type = st.selectbox(
         "Forecasting Model",
         options=["Seasonal Naive", "Prophet (if available)"],
-        index=0
+        key="ts_model_type"
     )
 
 
@@ -287,71 +296,79 @@ with tab2:
                     freq='H'
                 )
                 
-                forecast_df = pd.DataFrame({
+                st.session_state.forecast_df = pd.DataFrame({
                     DATETIME_COL: forecast_dates,
                     'forecast': predictions,
                     'lower': predictions * 0.9,  # Simple confidence interval
                     'upper': predictions * 1.1
                 })
-                
-                # Display metrics
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Avg Forecast", f"{predictions.mean():.0f} MW")
-                with col2:
-                    st.metric("Peak Forecast", f"{predictions.max():.0f} MW")
-                with col3:
-                    st.metric("Min Forecast", f"{predictions.min():.0f} MW")
-                
-                # Forecast chart
-                fig = go.Figure()
-                
-                # Historical (last 48 hours)
-                recent = df.tail(48)
-                fig.add_trace(go.Scatter(
-                    x=recent[DATETIME_COL],
-                    y=recent[TARGET_COL],
-                    mode='lines',
-                    name='Historical',
-                    line=dict(color=PRIMARY_COLOR)
-                ))
-                
-                # Forecast
-                fig.add_trace(go.Scatter(
-                    x=forecast_df[DATETIME_COL],
-                    y=forecast_df['forecast'],
-                    mode='lines',
-                    name='Forecast',
-                    line=dict(color=SECONDARY_COLOR, dash='dash')
-                ))
-                
-                # Confidence interval
-                fig.add_trace(go.Scatter(
-                    x=list(forecast_df[DATETIME_COL]) + list(forecast_df[DATETIME_COL][::-1]),
-                    y=list(forecast_df['upper']) + list(forecast_df['lower'][::-1]),
-                    fill='toself',
-                    fillcolor='rgba(255,127,14,0.2)',
-                    line=dict(color='rgba(0,0,0,0)'),
-                    name='Confidence Interval'
-                ))
-                
-                fig.update_layout(
-                    height=CHART_HEIGHT,
-                    xaxis_title="Time",
-                    yaxis_title="Demand (MW)",
-                    hovermode='x unified'
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Forecast table
-                with st.expander("📋 Forecast Details"):
-                    st.dataframe(
-                        forecast_df.assign(**{DATETIME_COL: forecast_df[DATETIME_COL].dt.strftime('%Y-%m-%d %H:%M')}),
-                        use_container_width=True
-                    )
-                
+                st.session_state.forecast_metrics = {
+                    "avg": predictions.mean(),
+                    "peak": predictions.max(),
+                    "min": predictions.min()
+                }
             except Exception as e:
                 st.error(f"Forecasting failed: {e}")
+
+    if "forecast_df" in st.session_state:
+        forecast_df = st.session_state.forecast_df
+        metrics = st.session_state.forecast_metrics
+        
+        # Display metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Avg Forecast", f"{metrics['avg']:.0f} MW")
+        with col2:
+            st.metric("Peak Forecast", f"{metrics['peak']:.0f} MW")
+        with col3:
+            st.metric("Min Forecast", f"{metrics['min']:.0f} MW")
+        
+        # Forecast chart
+        fig = go.Figure()
+        
+        # Historical (last 48 hours)
+        recent = df.tail(48)
+        fig.add_trace(go.Scatter(
+            x=recent[DATETIME_COL],
+            y=recent[TARGET_COL],
+            mode='lines',
+            name='Historical',
+            line=dict(color=PRIMARY_COLOR)
+        ))
+        
+        # Forecast
+        fig.add_trace(go.Scatter(
+            x=forecast_df[DATETIME_COL],
+            y=forecast_df['forecast'],
+            mode='lines',
+            name='Forecast',
+            line=dict(color=SECONDARY_COLOR, dash='dash')
+        ))
+        
+        # Confidence interval
+        fig.add_trace(go.Scatter(
+            x=list(forecast_df[DATETIME_COL]) + list(forecast_df[DATETIME_COL][::-1]),
+            y=list(forecast_df['upper']) + list(forecast_df['lower'][::-1]),
+            fill='toself',
+            fillcolor='rgba(255,127,14,0.2)',
+            line=dict(color='rgba(0,0,0,0)'),
+            name='Confidence Interval'
+        ))
+        
+        fig.update_layout(
+            height=CHART_HEIGHT,
+            xaxis_title="Time",
+            yaxis_title="Demand (MW)",
+            hovermode='x unified'
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Forecast table
+        with st.expander("📋 Forecast Details"):
+            st.dataframe(
+                forecast_df.assign(**{DATETIME_COL: forecast_df[DATETIME_COL].dt.strftime('%Y-%m-%d %H:%M')}),
+                use_container_width=True
+            )
     else:
         st.info("Click 'Generate Forecast' to see predictions")
 
