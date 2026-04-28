@@ -24,6 +24,7 @@ from config import (
 )
 from models.data_processor import load_energy_data, create_features
 from models.statistical import ProphetForecaster, SimpleSeasonalModel
+import shared_ui
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,40 +37,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        background: linear-gradient(90deg, #f39c12 0%, #e74c3c 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        color: white;
-    }
-    .anomaly-alert {
-        background-color: #ffebee;
-        border-left: 4px solid #f44336;
-        padding: 10px;
-        margin: 5px 0;
-        border-radius: 4px;
-        color: #333;
-    }
-    .forecast-good {
-        color: #27ae60;
-        font-weight: bold;
-    }
-    .forecast-warning {
-        color: #f39c12;
-        font-weight: bold;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Apply global theme
+shared_ui.apply_global_theme()
 
 
 # ============================================================================
@@ -169,8 +138,10 @@ with st.sidebar:
 # ============================================================================
 
 # Header
-st.markdown('<p class="main-header">⚡ Energy Demand Forecasting</p>', unsafe_allow_html=True)
-st.markdown("Real-time energy demand analysis and forecasting for grid optimization")
+shared_ui.add_header(
+    "⚡ Energy Demand Forecasting",
+    "Real-time energy demand analysis and forecasting for grid optimization | *Solving the $20B+ grid optimization challenge*"
+)
 
 st.markdown("---")
 
@@ -203,20 +174,13 @@ with tab1:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        avg_demand = df_filtered[TARGET_COL].mean()
-        st.metric("Avg Demand", f"{avg_demand:.0f} MW")
-    
+        shared_ui.create_metric_card("Avg Demand", f"{df_filtered[TARGET_COL].mean():.0f} MW")
     with col2:
-        peak_demand = df_filtered[TARGET_COL].max()
-        st.metric("Peak Demand", f"{peak_demand:.0f} MW")
-    
+        shared_ui.create_metric_card("Peak Demand", f"{df_filtered[TARGET_COL].max():.0f} MW")
     with col3:
-        min_demand = df_filtered[TARGET_COL].min()
-        st.metric("Min Demand", f"{min_demand:.0f} MW")
-    
+        shared_ui.create_metric_card("Min Demand", f"{df_filtered[TARGET_COL].min():.0f} MW")
     with col4:
-        std_demand = df_filtered[TARGET_COL].std()
-        st.metric("Volatility (σ)", f"{std_demand:.0f} MW")
+        shared_ui.create_metric_card("Volatility (σ)", f"{df_filtered[TARGET_COL].std():.0f} MW")
     
     st.markdown("---")
     
@@ -320,11 +284,11 @@ with tab2:
         # Display metrics
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Avg Forecast", f"{metrics['avg']:.0f} MW")
+            shared_ui.create_metric_card("Avg Forecast", f"{metrics['avg']:.0f} MW")
         with col2:
-            st.metric("Peak Forecast", f"{metrics['peak']:.0f} MW")
+            shared_ui.create_metric_card("Peak Forecast", f"{metrics['peak']:.0f} MW")
         with col3:
-            st.metric("Min Forecast", f"{metrics['min']:.0f} MW")
+            shared_ui.create_metric_card("Min Forecast", f"{metrics['min']:.0f} MW")
         
         # Forecast chart
         fig = go.Figure()
@@ -400,12 +364,11 @@ with tab3:
     # Summary
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Total Anomalies", len(detected_anomalies))
+        shared_ui.create_metric_card("Total Anomalies", str(len(detected_anomalies)), delta="Last 30 days", delta_pos=False)
     with col2:
-        pct = len(detected_anomalies) / len(df_filtered) * 100
-        st.metric("Anomaly Rate", f"{pct:.1f}%")
+        shared_ui.create_metric_card("Anomaly Rate", f"{len(detected_anomalies) / len(df_filtered) * 100:.1f}%")
     with col3:
-        st.metric("Threshold", f"±{anomaly_threshold}σ")
+        shared_ui.create_metric_card("Threshold", f"±{anomaly_threshold}σ", delta="Sensitivity")
     
     st.markdown("---")
     
@@ -521,5 +484,13 @@ st.markdown("""
 <div style="text-align: center; color: #666; font-size: 0.9rem;">
     ⚡ Energy Demand Forecasting | Hybrid ML: Statistical + Deep Learning<br>
     Solving the $20B+ grid optimization challenge
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #64748B; font-size: 0.875rem; padding: 2rem 0;">
+    ⚡ Energy Demand Forecasting | Built with Prophet + Seasonal Decompose<br>
+    <span style="font-family: 'Roboto Mono', monospace;">Version 1.3.0-Premium</span>
 </div>
 """, unsafe_allow_html=True)
