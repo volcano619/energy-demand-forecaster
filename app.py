@@ -116,8 +116,13 @@ with st.sidebar:
     min_date = df[DATETIME_COL].min().date()
     max_date = df[DATETIME_COL].max().date()
     
-    if "date_range" not in st.session_state:
+    if "horizon_name" not in st.session_state:
+        st.session_state.horizon_name = list(FORECAST_HORIZONS.keys())[0]
+    
+    # Initialize date range if not present
+    if "date_range" not in st.session_state or not st.session_state.date_range:
         st.session_state.date_range = (max_date - timedelta(days=30), max_date)
+    
     date_range = st.date_input(
         "Select Range",
         key="date_range",
@@ -127,8 +132,6 @@ with st.sidebar:
     
     # Forecast settings
     st.markdown("### 🔮 Forecast Settings")
-    if "horizon_name" not in st.session_state:
-        st.session_state.horizon_name = list(FORECAST_HORIZONS.keys())[0]
     horizon_name = st.selectbox(
         "Forecast Horizon",
         options=list(FORECAST_HORIZONS.keys()),
@@ -293,7 +296,7 @@ with tab2:
                 forecast_dates = pd.date_range(
                     start=last_date + timedelta(hours=1),
                     periods=horizon_hours,
-                    freq='H'
+                    freq='h'
                 )
                 
                 st.session_state.forecast_df = pd.DataFrame({

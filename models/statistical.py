@@ -117,7 +117,7 @@ class ProphetForecaster:
             raise ValueError("Model not fitted. Call fit() first.")
         
         # Create future dataframe
-        future = self.model.make_future_dataframe(periods=periods, freq='H')
+        future = self.model.make_future_dataframe(periods=periods, freq='h')
         
         # Add regressors if needed
         if future_regressors is not None:
@@ -139,7 +139,7 @@ class ProphetForecaster:
         components = {}
         
         if hasattr(self.model, 'history'):
-            future = self.model.make_future_dataframe(periods=0, freq='H')
+            future = self.model.make_future_dataframe(periods=0, freq='h')
             full_forecast = self.model.predict(future)
             
             components['trend'] = full_forecast['trend']
