@@ -132,6 +132,15 @@ with st.sidebar:
         key="ts_model_type"
     )
 
+    # Help Section
+    shared_ui.add_help_section(
+        "Energy Demand Forecasting",
+        "Predictive analytics system for real-time energy grid demand optimization.",
+        "Select a date range and forecast horizon in the sidebar, then click 'Generate Forecast'.",
+        "Traditional 'Seasonal Averages' fail during extreme events; this ML model adapts to complex patterns and detects anomalies.",
+        "Grid operators can pre-allocate resources for a predicted 20% surge tomorrow, preventing brownouts."
+    )
+
 
 # ============================================================================
 # MAIN CONTENT
