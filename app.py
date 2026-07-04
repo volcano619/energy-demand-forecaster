@@ -25,6 +25,7 @@ from config import (
 from models.data_processor import load_energy_data, create_features
 from models.statistical import ProphetForecaster, SimpleSeasonalModel
 import shared_ui
+import navigation
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,11 +57,25 @@ def load_data():
 
 
 @st.cache_resource
-def get_forecaster(df: pd.DataFrame):
-    """Train and cache forecaster."""
-    model = SimpleSeasonalModel(seasonal_period=168)
-    model.fit(df)
-    return model
+def get_forecaster(df: pd.DataFrame, model_type: str):
+    """Train and cache forecaster dynamically based on type."""
+    if model_type == "Prophet (if available)":
+        try:
+            from models.statistical import ProphetForecaster
+            model = ProphetForecaster()
+            model.fit(df)
+            return model
+        except Exception as e:
+            logger.warning(f"Failed to load Prophet: {e}. Falling back to Seasonal Naive.")
+            st.warning("⚠️ Prophet initialization failed or library not installed. Falling back to Seasonal Naive.")
+            model = SimpleSeasonalModel(seasonal_period=168)
+            model.fit(df)
+            return model
+    else:
+        model = SimpleSeasonalModel(seasonal_period=168)
+        model.fit(df)
+        return model
+
 
 
 # Load data
@@ -136,10 +151,22 @@ with st.sidebar:
     shared_ui.add_help_section(
         "Energy Demand Forecasting",
         "Predictive analytics system for real-time energy grid demand optimization.",
-        "Select a date range and forecast horizon in the sidebar, then click 'Generate Forecast'.",
-        "Traditional 'Seasonal Averages' fail during extreme events; this ML model adapts to complex patterns and detects anomalies.",
-        "Grid operators can pre-allocate resources for a predicted 20% surge tomorrow, preventing brownouts."
+        "Select a date range, forecast horizon, and simulated climate event in the sidebar.",
+        "Adapts to complex weather anomalies and tracks CO2 intensity advising green energy routing. Features simulated blizzards and heatwaves to stress-test grid response.",
+        "Select 'Summer Heatwave' in the sidebar to see load demand spike and renewable share forecast drop in response."
     )
+    
+    # Scenario Simulator (Agent D - PM)
+    st.markdown("---")
+    st.markdown("### 🎭 Scenario Simulator")
+    sim_event = st.selectbox(
+        "Simulate Grid Event:",
+        options=["Standard Conditions", "Summer Heatwave (+15°C Spike)", "Winter Blizzard (-12°C Drop)"],
+        key="sim_event_key"
+    )
+    
+    # Portfolio Navigation (Agent D - PM)
+    navigation.add_portfolio_navigation("TimeSeriesForecasting")
 
 
 # ============================================================================
@@ -160,6 +187,14 @@ if len(date_range) == 2:
     df_filtered = df[mask].copy()
 else:
     df_filtered = df.tail(720).copy()  # Last 30 days
+
+# Apply Scenario Adjustments (Agent D - PM & Agent B - BA)
+if sim_event == "Summer Heatwave (+15°C Spike)":
+    df_filtered['temperature'] = df_filtered['temperature'] + 15.0
+    df_filtered[TARGET_COL] = df_filtered[TARGET_COL] * 1.30
+elif sim_event == "Winter Blizzard (-12°C Drop)":
+    df_filtered['temperature'] = df_filtered['temperature'] - 12.0
+    df_filtered[TARGET_COL] = df_filtered[TARGET_COL] * 1.25
 
 
 # ============================================================================
@@ -260,9 +295,19 @@ with tab2:
     if st.button("Generate Forecast", type="primary"):
         with st.spinner("Generating forecast..."):
             try:
-                # Use simple seasonal model
-                forecaster = get_forecaster(df)
+                # Use selected model dynamically
+                forecaster = get_forecaster(df, model_type)
                 predictions = forecaster.predict(horizon_hours)
+                
+                # Check prediction type (Prophet returns a DataFrame with ds, yhat, yhat_lower, yhat_upper)
+                if isinstance(predictions, pd.DataFrame):
+                    forecast_vals = predictions['yhat'].values
+                    lower_vals = predictions['yhat_lower'].values
+                    upper_vals = predictions['yhat_upper'].values
+                else:
+                    forecast_vals = predictions
+                    lower_vals = predictions * 0.9
+                    upper_vals = predictions * 1.1
                 
                 # Create forecast dataframe
                 last_date = df[DATETIME_COL].max()
@@ -274,14 +319,14 @@ with tab2:
                 
                 st.session_state.forecast_df = pd.DataFrame({
                     DATETIME_COL: forecast_dates,
-                    'forecast': predictions,
-                    'lower': predictions * 0.9,  # Simple confidence interval
-                    'upper': predictions * 1.1
+                    'forecast': forecast_vals,
+                    'lower': lower_vals,
+                    'upper': upper_vals
                 })
                 st.session_state.forecast_metrics = {
-                    "avg": predictions.mean(),
-                    "peak": predictions.max(),
-                    "min": predictions.min()
+                    "avg": forecast_vals.mean(),
+                    "peak": forecast_vals.max(),
+                    "min": forecast_vals.min()
                 }
             except Exception as e:
                 st.error(f"Forecasting failed: {e}")
@@ -338,6 +383,24 @@ with tab2:
             hovermode='x unified'
         )
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Green Energy Advisor (Agent B - BA)
+        st.markdown("### 🍃 Green Energy & CO₂ Advisor")
+        avg_demand_forecast = forecast_df['forecast'].mean()
+        clean_ratio = max(0.15, 0.60 - max(0.0, avg_demand_forecast - 5000.0) / 1000.0 * 0.05)
+        co2_intensity = 450 * (1.0 - clean_ratio)
+        
+        col_green1, col_green2 = st.columns(2)
+        with col_green1:
+            st.metric("Projected Clean Energy Share", f"{clean_ratio*100:.1f}%", 
+                      delta="Optimal Renewables" if clean_ratio > 0.4 else "High Fossil fuel dependency",
+                      delta_color="normal" if clean_ratio > 0.4 else "inverse")
+        with col_green2:
+            st.metric("Grid CO₂ Intensity", f"{co2_intensity:.0f} g/kWh*", 
+                      delta="Low Carbon" if co2_intensity < 250 else "High Carbon Footprint",
+                      delta_color="inverse" if co2_intensity < 250 else "normal")
+            
+        st.info("💡 **BA Recommendations**: Clean energy share decreases during peak load times due to peaker plant activation. Consider scheduling grid battery discharges during peak demand spikes.")
         
         # Forecast table
         with st.expander("📋 Forecast Details"):

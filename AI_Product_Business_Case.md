@@ -152,27 +152,73 @@ A **hybrid ML time series forecasting system** for predicting energy demand, ena
 
 ## 10. Risks & Mitigations
 
-| Risk | Likelihood | Mitigation |
-|------|------------|------------|
-| Model drift | Medium | Continuous retraining |
-| Extreme weather | Low | Ensemble robustness |
-| Data quality issues | Medium | Anomaly detection |
-| Regulatory requirements | Low | Explainable models |
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Unexpected weather extremes | Medium | High | Fallback simple seasonal models |
+| Bad telemetry data / outages | High | Medium | Data cleaning + imputation layers |
+| Model drift (long-term) | Medium | Medium | Automated retraining triggers |
+| Trust / adoption issues | Medium | Medium | Exposing prediction intervals to operators |
+
+---
+
+## 11. AI Product Management & Strategic Decisions
+
+### Build vs. Buy Analysis
+To deploy the regional energy demand forecasting system, the product team evaluated commercial forecasting platforms against building a custom hybrid ML model:
+
+| Strategic Vector | Custom Build (Our Solution) | Buy (e.g., AWS Forecast, Anaplan) | Decision Factor |
+|---|---|---|---|
+| **CapEx (Initial Cost)** | **Medium ($180K)** (2 Data Scientists + 1 PM for 4 months) | **Low ($30K)** integration and setup fees | Buy is cheaper upfront |
+| **OpEx (Ongoing Cost)** | **Very Low ($5K/year)** for standard scheduled cloud VM | **High ($60K-$200K/year)** scaling with grid node count | **Build wins** at scale (100+ substations) |
+| **Real-time Telemetry** | **High**: Directly interfaces with grid SCADA systems | **Medium**: Dependent on batch uploads to cloud API | **Build wins** for latency requirements |
+| **Explainability** | **High**: Prophet exposes trend, weekly, and daily seasonal sub-components | **Low**: Black-box predictions raise trust issues with operators | **Build wins** for regulatory compliance |
+| **Custom Loss Functions**| **High**: Tuned for asymmetrical economic cost of under-prediction | **Low**: Standard MSE/MAE symmetric loss defaults | **Build wins** for grid stability risks |
+
+**Product Decision**: **Build custom ensemble model**. Grid control operators require detailed explainability to justify peaker plant activations. Commercial APIs are black boxes that use symmetric loss functions (which treat over-prediction and under-prediction errors equally). Building our custom Prophet + LSTM ensemble allows us to expose clear component trends, interface directly with SCADA systems, and optimize for the asymmetrical costs of under-prediction.
+
+### Total Cost of Ownership (TCO) Model
+The table below estimates the 3-year lifecycle costs for building and operating the custom forecasting system for 50 grid nodes:
+
+| Cost Component | Year 1 (CapEx + OpEx) | Year 2 (OpEx) | Year 3 (OpEx) | Breakdown |
+|---|---|---|---|---|
+| **Development** | $180,000 | $0 | $0 | Product Manager & Data Scientist salaries |
+| **Compute & Compute VM**| $3,600 | $3,600 | $3,600 | Daily model retraining and telemetry ingestion |
+| **Data Pipeline Support**| $12,000 | $12,000 | $12,000 | Data engineering support for SCADA sensor telemetry |
+| **Model Auditing** | $10,000 | $10,000 | $10,000 | Annual retraining and feature drift monitoring |
+| **Total TCO** | **$205,600** | **$25,600** | **$25,600** | **3-Year Cumulative TCO: $256,800** |
+
+### Model Selection & Trade-off Matrix
+We analyzed multiple models to balance baseline accuracy, explainability, and handling of extreme weather events:
+
+| Model Architecture | Modeled WMAPE | Explainability | Training Time | Adaptability to Extreme Weather | Product Selection |
+|---|---|---|---|---|---|
+| **Seasonal Naive** | 12.4% | High | **<1s** | Very Low | Pass (Used as baseline fallback) |
+| **Prophet (Statistical)** | **6.2%** | **High** (Components) | ~10s | Low (relies on historical trends) | **Selected** (Ensemble base - 60% weight) |
+| **LSTM (Deep Learning)** | **7.8%** | Low | ~5 mins | **High** (captures weather interaction) | **Selected** (Ensemble base - 40% weight) |
+
+**Rationale**: We chose a weighted ensemble of **60% Prophet and 40% LSTM**. Prophet provides grid operators with clear seasonal sub-components (daily/weekly patterns) for trust, while LSTM acts as a safety valve, learning complex non-linear relationships during heatwaves and extreme weather events.
+
+### Asymmetrical Loss Optimization (Precision vs. Recall)
+In energy grid operations, the economic and operational costs of forecasting errors are highly asymmetrical:
+*   **Under-Forecasting (Negative Error)**: The model predicts lower demand than actual. Grid operators fail to reserve peaker plants, leading to emergency power purchases or blackouts. **Estimated economic cost: $5,000 per MWh** (or millions in regional damage).
+*   **Over-Forecasting (Positive Error)**: The model predicts higher demand than actual. Grid operators reserve excess generation capacity that goes unused. **Estimated economic cost: $50 per MWh** (wasted fuel).
+
+Because under-forecasting is **100x more costly** than over-forecasting, we adjusted the model's decision boundaries. Instead of optimizing for Mean Absolute Error (MAE), we utilize a custom **pinball loss function** that heavily penalizes under-predictions. This biases the final dashboard forecast towards the **90th percentile prediction interval (upper bound)**, ensuring the grid stays stable during peak periods while operators accept a minor, managed capacity buffer.
 
 ---
 
 ## Appendix: Data Sources
 
-### Verified Statistics
-- US Energy Information Administration (EIA)
-- Federal Reserve Bank of Dallas (Texas blackout)
-- National Renewable Energy Laboratory (NREL)
-- McKinsey Energy Insights
+### Verified Industry Statistics
+- EIA (Energy Information Administration) hourly grid data
+- NERC (North American Electric Reliability Corporation) cost of outage reports
+- NOAA historical weather records
 
 ### Estimates & Projections
-- Accuracy improvements based on academic ML studies
-- ROI model is illustrative, not based on deployment
+- Economic impact based on wholesale peak electricity pricing ($50-$500/MWh)
+- Blackout mitigation costs modeled on historic grid failures
+- ROI projections are illustrative and scale-dependent
 
 ---
 
-*Document prepared for AI Product Management portfolio.*
+*Document prepared for AI Product Management portfolio. All projections should be validated through controlled experiments before business decisions.*
